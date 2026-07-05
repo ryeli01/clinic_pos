@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clinic POS</title>
+    <style>
+        body { font-family: Arial, Helvetica; padding: 20px; max-width: 600px; margin: auto; }
+        .med_btn { padding: 10px; margin: 5px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 4px; }
+        .cart_item { margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; background-color: #f9f9f9; padding: 5px; border-radius: 4px;}
+        .qty_input { width: 50px; padding: 5px; text-align: center; }
+        .total, .change { font-size: 1.2em; font-weight: bold; margin-top: 15px; }
+        .checkout_section { margin-top: 20px; padding-top: 20px; border-top: 1px solid #ccc; }
+        .input_amount { padding: 8px; width: 120px; font-size: 1em; }
+        .remove_btn { background-color: #f44336; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 3px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h2>Clinic Cashier</h2>
+    
+    <div id="medicine_list">
+    </div>
+
+    <h3>Cart</h3>
+    <div id="cart"></div>
+    <div class="total" id="total_display">Total: ₱0.00</div>
+    
+    <div class="checkout_section">
+        <label for="amount_tendered"><strong>Amount Tendered (₱): </strong></label>
+        <input type="number" id="amount_tendered" class="input_amount" min="0" step="0.01" placeholder="Enter amount" oninput="calculateChange()">
+        
+        <div class="change" id="change_display">Change: ₱0.00</div>
+        
+        <button onclick="checkout()" style="margin-top: 20px; padding: 10px; background-color: #2196F3; color: white; border: none; cursor: pointer; border-radius: 4px;">Checkout / Clear Cart</button>
+    </div>
+
+    <script>
+        const medicines = [
+            { name: "Abdin 10 mg", price: 80 },
+            { name: "Abdin 5 mg", price: 60 },
+            { name: "Abilify", price: 250 },
+            { name: "Akidin", price: 15 },
+            { name: "Apiden", price: 12 },
+            { name: "Arilan Aripiprazole 5 mg", price: 40 },
+            { name: "Arilan Aripiprazole 10 mg", price: 55 },
+            { name: "Asterol", price: 15 },
+            { name: "Brintellix 10 mg", price: 115 },
+            { name: "Brintellix 5 mg", price: 90 },
+            { name: "Concerta", price: 230 },
+            { name: "Conjupram", price: 17 },
+            { name: "Depamax 250 mg", price: 17 },
+            { name: "Depamax 500 mg", price: 22 },
+            { name: "Depamax Syrup", price: 275 },
+            { name: "Diphenhydramine 25 mg", price: 5 },
+            { name: "Diphenhydramine 50 mg", price: 5 },
+            { name: "Drafzin", price: 21 },
+            { name: "Escinal", price: 15 },
+            { name: "Fluphenazine", price: 900 },
+            { name: "Folic", price: 5 },
+            { name: "Haloperidol", price: 25 },
+            { name: "Lamotrigine", price: 25 },
+            { name: "Lexapro", price: 100 },
+            { name: "Loxx 30 mg", price: 20 },
+            { name: "Loxx 60 mg", price: 30 },
+            { name: "Neurotain", price: 40 },
+            { name: "Olanzapine (Olanzin, Zenia)", price: 50 },
+            { name: "Rexulti 1 mg", price: 160 },
+            { name: "Ricoverin", price: 20 },
+            { name: "Rispen / Reone", price: 15 },
+            { name: "Vit B (Multivitamins)", price: 5 }
+        ];
+
+        let cart = [];
+
+        function init() {
+            const list = document.getElementById("medicine_list");
+            medicines.forEach((med, index) => {
+                let btn = document.createElement("button");
+                btn.className = "med_btn";
+                btn.innerText = med.name + " (₱" + med.price.toFixed(2) + ")";
+                btn.onclick = () => addToCart(index);
+                list.appendChild(btn);
+            });
+        }
+
+        function addToCart(index) {
+            const med = medicines[index];
+            const existingItem = cart.find(item => item.name === med.name);
+            
+            if (existingItem) {
+                existingItem.quantity += 1;
+            } else {
+                cart.push({ ...med, quantity: 1 });
+            }
+            updateCart();
+        }
+
+        function updateQuantity(index, newQuantity) {
+            if (newQuantity <= 0) {
+                cart.splice(index, 1);
+            } else {
+                cart[index].quantity = parseInt(newQuantity);
+            }
+            updateCart();
+        }
+
+        function removeFromCart(index) {
+            cart.splice(index, 1);
+            updateCart();
+        }
+
+        function checkout() {
+            if(cart.length === 0) {
+                alert("Cart is empty.");
+                return;
+            }
+            cart = [];
+            document.getElementById("amount_tendered").value = "";
+            updateCart();
+            alert("Checkout complete!");
+        }
+
+        function updateCart() {
+            const cartDiv = document.getElementById("cart");
+            cartDiv.innerHTML = "";
+            let total = 0;
+            
+            cart.forEach((item, index) => {
+                let div = document.createElement("div");
+                div.className = "cart_item";
+                
+                let nameSpan = document.createElement("span");
+                nameSpan.innerText = item.name + " (₱" + item.price.toFixed(2) + ")";
+                
+                let controlsDiv = document.createElement("div");
+                
+                let qtyInput = document.createElement("input");
+                qtyInput.type = "number";
+                qtyInput.className = "qty_input";
+                qtyInput.value = item.quantity;
+                qtyInput.min = "1";
+                qtyInput.onchange = (e) => updateQuantity(index, e.target.value);
+                
+                let removeBtn = document.createElement("button");
+                removeBtn.className = "remove_btn";
+                removeBtn.innerText = "X";
+                removeBtn.style.marginLeft = "10px";
+                removeBtn.onclick = () => removeFromCart(index);
+                
+                controlsDiv.appendChild(qtyInput);
+                controlsDiv.appendChild(removeBtn);
+                
+                div.appendChild(nameSpan);
+                div.appendChild(controlsDiv);
+                
+                cartDiv.appendChild(div);
+                
+                total += item.price * item.quantity;
+            });
+
+            document.getElementById("total_display").innerText = "Total: ₱" + total.toFixed(2);
+            
+            calculateChange(); 
+        }
+
+        function calculateChange() {
+            let total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            let tenderedStr = document.getElementById("amount_tendered").value;
+            let tendered = parseFloat(tenderedStr);
+            let changeDisplay = document.getElementById("change_display");
+            
+            if (isNaN(tendered) || tenderedStr.trim() === "") {
+                changeDisplay.innerText = "Change: ₱0.00";
+                changeDisplay.style.color = "black";
+                return;
+            }
+            
+            let change = tendered - total;
+            
+            if (change < 0) {
+                changeDisplay.innerText = "Change: Insufficient Amount";
+                changeDisplay.style.color = "red";
+            } else {
+                changeDisplay.innerText = "Change: ₱" + change.toFixed(2);
+                changeDisplay.style.color = "green";
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
