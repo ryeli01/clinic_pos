@@ -1,16 +1,23 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Clinic POS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body { font-family: Arial, Helvetica; padding: 20px; max-width: 600px; margin: auto; }
         .med_btn { padding: 10px; margin: 5px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 4px; }
         .cart_item { margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; background-color: #f9f9f9; padding: 5px; border-radius: 4px;}
         .qty_input { width: 50px; padding: 5px; text-align: center; }
+        
+        /* New styles for the fees section */
+        .fee_section { margin-top: 15px; padding: 15px; background-color: #eef2f5; border-radius: 5px; }
+        .fee_row { margin-bottom: 10px; display: flex; align-items: center; }
+        .fee_row label { margin-left: 5px; font-weight: bold; cursor: pointer; }
+        .hidden { display: none !important; }
+        
         .total, .change { font-size: 1.2em; font-weight: bold; margin-top: 15px; }
         .checkout_section { margin-top: 20px; padding-top: 20px; border-top: 1px solid #ccc; }
-        .input_amount { padding: 8px; width: 120px; font-size: 1em; }
+        .input_amount { padding: 8px; width: 100px; font-size: 1em; margin-left: auto; }
         .remove_btn { background-color: #f44336; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 3px; font-weight: bold; }
     </style>
 </head>
@@ -23,6 +30,20 @@
 
     <h3>Cart</h3>
     <div id="cart"></div>
+
+    <div class="fee_section">
+        <div class="fee_row">
+            <input type="checkbox" id="has_pf" onchange="togglePF()">
+            <label for="has_pf">Professional Fee</label>
+            <input type="number" id="pf_amount" class="input_amount hidden" min="0" step="0.01" placeholder="₱ Amount" oninput="updateCart()">
+        </div>
+        <div class="fee_row">
+            <input type="checkbox" id="has_medcert" onchange="toggleMedCert()">
+            <label for="has_medcert">Medical Certificate</label>
+            <input type="number" id="medcert_amount" class="input_amount hidden" min="0" step="0.01" placeholder="₱ Amount" oninput="updateCart()">
+        </div>
+    </div>
+
     <div class="total" id="total_display">Total: ₱0.00</div>
     
     <div class="checkout_section">
@@ -31,7 +52,7 @@
         
         <div class="change" id="change_display">Change: ₱0.00</div>
         
-        <button onclick="checkout()" style="margin-top: 20px; padding: 10px; background-color: #2196F3; color: white; border: none; cursor: pointer; border-radius: 4px;">Checkout / Clear Cart</button>
+        <button onclick="checkout()" style="margin-top: 20px; width: 100%; padding: 12px; background-color: #2196F3; color: white; border: none; cursor: pointer; border-radius: 4px; font-size: 1.1em; font-weight: bold;">Checkout / Clear Cart</button>
     </div>
 
     <script>
@@ -109,13 +130,54 @@
             updateCart();
         }
 
+        // Functions to show/hide the input boxes for fees
+        function togglePF() {
+            const pfInput = document.getElementById("pf_amount");
+            if (document.getElementById("has_pf").checked) {
+                pfInput.classList.remove("hidden");
+            } else {
+                pfInput.classList.add("hidden");
+                pfInput.value = "";
+            }
+            updateCart();
+        }
+
+        function toggleMedCert() {
+            const mcInput = document.getElementById("medcert_amount");
+            if (document.getElementById("has_medcert").checked) {
+                mcInput.classList.remove("hidden");
+            } else {
+                mcInput.classList.add("hidden");
+                mcInput.value = "";
+            }
+            updateCart();
+        }
+
+        // Get the total of everything (Cart + PF + MedCert)
+        function getGrandTotal() {
+            let cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            let pf = parseFloat(document.getElementById("pf_amount").value) || 0;
+            let medcert = parseFloat(document.getElementById("medcert_amount").value) || 0;
+            return cartTotal + pf + medcert;
+        }
+
         function checkout() {
-            if(cart.length === 0) {
-                alert("Cart is empty.");
+            if(cart.length === 0 && !document.getElementById("has_pf").checked && !document.getElementById("has_medcert").checked) {
+                alert("Cart is empty and no fees are added.");
                 return;
             }
+            // Clear cart
             cart = [];
+            
+            // Clear inputs and checkboxes
             document.getElementById("amount_tendered").value = "";
+            document.getElementById("has_pf").checked = false;
+            document.getElementById("has_medcert").checked = false;
+            
+            // Hide the fee inputs again
+            togglePF();
+            toggleMedCert();
+            
             updateCart();
             alert("Checkout complete!");
         }
@@ -123,7 +185,6 @@
         function updateCart() {
             const cartDiv = document.getElementById("cart");
             cartDiv.innerHTML = "";
-            let total = 0;
             
             cart.forEach((item, index) => {
                 let div = document.createElement("div");
@@ -154,17 +215,16 @@
                 div.appendChild(controlsDiv);
                 
                 cartDiv.appendChild(div);
-                
-                total += item.price * item.quantity;
             });
 
-            document.getElementById("total_display").innerText = "Total: ₱" + total.toFixed(2);
+            let finalTotal = getGrandTotal();
+            document.getElementById("total_display").innerText = "Total: ₱" + finalTotal.toFixed(2);
             
             calculateChange(); 
         }
 
         function calculateChange() {
-            let total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            let finalTotal = getGrandTotal();
             let tenderedStr = document.getElementById("amount_tendered").value;
             let tendered = parseFloat(tenderedStr);
             let changeDisplay = document.getElementById("change_display");
@@ -175,7 +235,7 @@
                 return;
             }
             
-            let change = tendered - total;
+            let change = tendered - finalTotal;
             
             if (change < 0) {
                 changeDisplay.innerText = "Change: Insufficient Amount";
