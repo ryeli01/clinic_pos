@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clinic POS</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; }
+        .med_btn { padding: 10px; margin: 5px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 4px; }
+        .cart_item { margin-bottom: 5px; }
+        .total { font-size: 1.5em; font-weight: bold; margin-top: 15px; }
+    </style>
+</head>
+<body>
+
+    <h2>Clinic Cashier</h2>
+    
+    <div id="medicine_list">
+        </div>
+
+    <h3>Cart</h3>
+    <div id="cart"></div>
+    <div class="total" id="total_display">Total: ₱0.00</div>
+    <button onclick="clearCart()" style="margin-top: 20px; padding: 10px; background-color: #f44336; color: white; border: none; cursor: pointer;">Clear Cart / Checkout</button>
+
+    <script>
+        const medicines = [
+            { name: "Abdin 10 mg", price: 80 },
+            { name: "Abilify", price: 250 },
+            { name: "Concerta", price: 230 },
+            { name: "Lexapro", price: 100 },
+            { name: "Ritalin", price: 75 }
+        ];
+
+        let cart = [];
+
+        function init() {
+            const list = document.getElementById("medicine_list");
+            medicines.forEach((med, index) => {
+                let btn = document.createElement("button");
+                btn.className = "med_btn";
+                btn.innerText = med.name + " (₱" + med.price + ")";
+                btn.onclick = () => addToCart(index);
+                list.appendChild(btn);
+            });
+        }
+
+        function addToCart(index) {
+            cart.push(medicines[index]);
+            updateCart();
+        }
+
+        function clearCart() {
+            cart = [];
+            updateCart();
+            alert("Checkout complete!");
+        }
+
+        function updateCart() {
+            const cartDiv = document.getElementById("cart");
+            cartDiv.innerHTML = "";
+            let total = 0;
+            
+            cart.forEach(item => {
+                let div = document.createElement("div");
+                div.className = "cart_item";
+                div.innerText = item.name + " (₱" + item.price + ")";
+                cartDiv.appendChild(div);
+                total += item.price;
+            });
+
+            document.getElementById("total_display").innerText = "Total: ₱" + total.toFixed(2);
+        }
+
+        init();
+    </script>
+</body>
+</html>
