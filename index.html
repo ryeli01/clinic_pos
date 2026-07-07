@@ -20,7 +20,7 @@
         .patient_input { width: 100%; padding: 10px; font-size: 1.1em; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;}
         .remove_btn { background-color: #f44336; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 3px; font-weight: bold; }
         
-        /* New Edit Button Style */
+        /* Edit Button Style */
         .edit_btn { background-color: #FFC107; color: black; border: none; padding: 3px 8px; cursor: pointer; border-radius: 3px; font-weight: bold; margin-left: 10px; font-size: 0.8em; }
 
         .save_btn { margin-top: 20px; width: 100%; padding: 15px; background-color: #2196F3; color: white; border: none; cursor: pointer; border-radius: 4px; font-size: 1.2em; font-weight: bold; }
@@ -234,7 +234,7 @@
             updateCart();
         }
 
-        // NEW FEATURE: Edit unit price in the cart
+        // Edit unit price in the cart using base64 obscured password
         function editPrice(index) {
             let password = prompt("Enter authorization password to edit price:");
             
@@ -242,7 +242,9 @@
                 return; // User clicked cancel
             }
             
-            if (password !== "n1mbUs") {
+            // We use btoa() to encode their guess and compare it to the encoded password
+            // 'bjFtYlVz' is the secret encoded version of 'n1mbUs'
+            if (btoa(password) !== "bjFtYlVz") {
                 alert("Incorrect password. Price edit denied.");
                 return;
             }
