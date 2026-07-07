@@ -21,6 +21,34 @@
         .remove_btn { background-color: #f44336; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 3px; font-weight: bold; }
         .save_btn { margin-top: 20px; width: 100%; padding: 15px; background-color: #2196F3; color: white; border: none; cursor: pointer; border-radius: 4px; font-size: 1.2em; font-weight: bold; }
         .save_btn:disabled { background-color: #cccccc; cursor: not-allowed; }
+
+        /* --- NEW MODAL POP-UP STYLES --- */
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed; 
+            z-index: 10; 
+            left: 0; top: 0; width: 100%; height: 100%; 
+            background-color: rgba(0,0,0,0.6); /* Black with opacity */
+        }
+        .modal-content {
+            background-color: #fff;
+            margin: 10% auto; /* 10% from the top and centered */
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .receipt-header { text-align: center; font-size: 1.3em; font-weight: bold; margin-bottom: 15px; color: #4CAF50; }
+        .receipt-line { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.95em; }
+        .receipt-divider { border-top: 1px dashed #ccc; margin: 10px 0; }
+        .receipt-bold { font-weight: bold; }
+        .receipt-subtext { font-size: 0.85em; color: #555; }
+        .reset-btn {
+            width: 100%; padding: 12px; margin-top: 20px;
+            background-color: #f44336; color: white; border: none;
+            border-radius: 4px; font-size: 1.1em; font-weight: bold; cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -57,6 +85,15 @@
         <div class="change" id="change_display">Change: ₱0.00</div>
         
         <button id="save_button" class="save_btn" onclick="saveData()">Save Record</button>
+    </div>
+
+    <div id="receiptModal" class="modal">
+        <div class="modal-content">
+            <div class="receipt-header">Record Saved Successfully!</div>
+            <div id="receipt_body">
+                </div>
+            <button class="reset-btn" onclick="closeReceiptAndReset()">Close & Reset Form</button>
+        </div>
     </div>
 
     <script>
@@ -240,8 +277,57 @@
             updateCart();
         }
 
+        // --- NEW POP-UP DISPLAY FUNCTION ---
+        function generateReceipt(patientName, total, tendered, change, pfAmount, medCertAmount) {
+            const receiptBody = document.getElementById("receipt_body");
+            let html = `<div class="receipt-line receipt-bold"><span>Patient:</span> <span>${patientName}</span></div>`;
+            html += `<div class="receipt-divider"></div>`;
+            
+            // Add Medicines
+            if (cart.length > 0) {
+                html += `<div class="receipt-bold" style="margin-bottom: 5px;">Medicines:</div>`;
+                cart.forEach(item => {
+                    let subtotal = item.price * item.quantity;
+                    html += `
+                    <div class="receipt-line">
+                        <span class="receipt-subtext">${item.name} <br>(₱${item.price.toFixed(2)} x ${item.quantity})</span>
+                        <span>₱${subtotal.toFixed(2)}</span>
+                    </div>`;
+                });
+                html += `<div class="receipt-divider"></div>`;
+            }
+
+            // Add Fees if they exist
+            if (pfAmount > 0 || medCertAmount > 0) {
+                html += `<div class="receipt-bold" style="margin-bottom: 5px;">Fees:</div>`;
+                if (pfAmount > 0) {
+                    html += `<div class="receipt-line"><span>Professional Fee</span> <span>₱${pfAmount.toFixed(2)}</span></div>`;
+                }
+                if (medCertAmount > 0) {
+                    html += `<div class="receipt-line"><span>Medical Certificate</span> <span>₱${medCertAmount.toFixed(2)}</span></div>`;
+                }
+                html += `<div class="receipt-divider"></div>`;
+            }
+
+            // Add Totals
+            html += `<div class="receipt-line receipt-bold"><span>Total Payable:</span> <span>₱${total.toFixed(2)}</span></div>`;
+            html += `<div class="receipt-line"><span>Amount Tendered:</span> <span>₱${tendered.toFixed(2)}</span></div>`;
+            html += `<div class="receipt-line receipt-bold" style="color: green;"><span>Change:</span> <span>₱${change.toFixed(2)}</span></div>`;
+
+            receiptBody.innerHTML = html;
+            
+            // Show the modal
+            document.getElementById("receiptModal").style.display = "block";
+        }
+
+        // --- NEW RESET FUNCTION ---
+        function closeReceiptAndReset() {
+            document.getElementById("receiptModal").style.display = "none";
+            clearForm(); // Form clears only when this button is clicked
+        }
+
         function saveData() {
-            const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwZDNH1atKxA7vBP6YZgdtycSkQ1Qu4qmWfwwn--4ATcWiCrVng54fqV9X5GtchTw93/exec"; // PASTE YOUR GOOGLE SCRIPT URL HERE
+            const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwZDNH1atKxA7vBP6YZgdtycSkQ1Qu4qmWfwwn--4ATcWiCrVng54fqV9X5GtchTw93/exec"; 
             
             const patientName = document.getElementById("patient_name").value.trim();
             const total = getGrandTotal();
@@ -263,7 +349,7 @@
                 return;
             }
 
-            // Format medicines list into a single readable string
+            // Format medicines list into a single readable string for Google Sheets
             let medsListString = cart.length > 0 
                 ? cart.map(item => `${item.name} (x${item.quantity})`).join(", ") 
                 : "None";
@@ -279,7 +365,7 @@
             };
 
             const saveBtn = document.getElementById("save_button");
-            saveBtn.innerText = "Saving...";
+            saveBtn.innerText = "Saving to Database...";
             saveBtn.disabled = true;
 
             // Send data to Google Sheets
@@ -292,14 +378,15 @@
             })
             .then(response => response.json())
             .then(data => {
-                alert("Record saved successfully!");
-                clearForm();
+                // INSTEAD of alert() and clearForm(), we trigger the receipt pop-up
+                generateReceipt(patientName, total, tendered, change, pfAmount, medCertAmount);
+                
                 saveBtn.innerText = "Save Record";
                 saveBtn.disabled = false;
             })
             .catch(error => {
                 console.error("Error!", error);
-                alert("Something went wrong while saving. Please check your Script URL.");
+                alert("Something went wrong while saving. Please check your connection.");
                 saveBtn.innerText = "Save Record";
                 saveBtn.disabled = false;
             });
