@@ -21,6 +21,9 @@
         .remove_btn { background-color: #f44336; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 3px; font-weight: bold; }
         .save_btn { margin-top: 20px; width: 100%; padding: 15px; background-color: #2196F3; color: white; border: none; cursor: pointer; border-radius: 4px; font-size: 1.2em; font-weight: bold; }
         .save_btn:disabled { background-color: #cccccc; cursor: not-allowed; }
+        
+        /* New Sync Button Style */
+        .sync_btn { background-color: #FF9800; display: none; margin-top: 10px; }
 
         /* RECEIPT MODAL STYLES */
         .modal {
@@ -32,7 +35,7 @@
         }
         .modal-content {
             background-color: #fff;
-            margin: 5% auto; /* Adjusted from 10% to 5% to give more top room */
+            margin: 5% auto; 
             padding: 20px;
             border-radius: 8px;
             width: 90%;
@@ -45,11 +48,10 @@
         .receipt-bold { font-weight: bold; }
         .receipt-subtext { font-size: 0.85em; color: #555; }
         
-        /* THIS MAKES THE RECEIPT SCROLLABLE */
         #receipt_body {
-            max-height: 50vh; /* Limits the list height to 50% of the screen */
-            overflow-y: auto; /* Adds a vertical scrollbar when needed */
-            padding-right: 5px; /* Keeps text from touching the scrollbar */
+            max-height: 50vh; 
+            overflow-y: auto; 
+            padding-right: 5px; 
         }
         
         .button-group {
@@ -91,7 +93,6 @@
                 box-shadow: none !important;
                 page-break-inside: avoid !important;
             }
-            /* Removes the scrollbar limits during printing so the whole list prints */
             #receipt_body {
                 max-height: none !important;
                 overflow: visible !important;
@@ -137,12 +138,13 @@
             <div class="change" id="change_display">Change: ₱0.00</div>
             
             <button id="save_button" class="save_btn" onclick="saveData()">Save Record</button>
+            <button id="sync_button" class="save_btn sync_btn" onclick="syncOfflineRecords()">Sync Offline Records</button>
         </div>
     </div>
 
     <div id="receiptModal" class="modal">
         <div class="modal-content">
-            <div class="receipt-header">Record Saved Successfully!</div>
+            <div class="receipt-header">Record Saved!</div>
             <div id="receipt_body">
                 </div>
             
@@ -200,6 +202,7 @@
                 btn.onclick = () => addToCart(index);
                 list.appendChild(btn);
             });
+            checkOfflineQueue(); // Check for unsynced records on load
         }
 
         function addToCart(index) {
@@ -377,6 +380,70 @@
             clearForm(); 
         }
 
+        // --- NEW OFFLINE STORAGE FUNCTIONS ---
+        function checkOfflineQueue() {
+            let offlineRecords = JSON.parse(localStorage.getItem("clinic_offline_records")) || [];
+            const syncBtn = document.getElementById("sync_button");
+            
+            if (offlineRecords.length > 0) {
+                syncBtn.style.display = "block";
+                syncBtn.innerText = `Sync Offline Records (${offlineRecords.length})`;
+            } else {
+                syncBtn.style.display = "none";
+            }
+        }
+
+        function saveToOfflineQueue(payload) {
+            let offlineRecords = JSON.parse(localStorage.getItem("clinic_offline_records")) || [];
+            offlineRecords.push(payload);
+            localStorage.setItem("clinic_offline_records", JSON.stringify(offlineRecords));
+            checkOfflineQueue();
+        }
+
+        function syncOfflineRecords() {
+            let offlineRecords = JSON.parse(localStorage.getItem("clinic_offline_records")) || [];
+            if (offlineRecords.length === 0) return;
+
+            const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwZDNH1atKxA7vBP6YZgdtycSkQ1Qu4qmWfwwn--4ATcWiCrVng54fqV9X5GtchTw93/exec"; 
+            const syncBtn = document.getElementById("sync_button");
+            
+            syncBtn.innerText = "Syncing...";
+            syncBtn.disabled = true;
+
+            // Grab the oldest record in the queue
+            let payload = offlineRecords[0];
+
+            fetch(SCRIPT_URL, {
+                method: "POST",
+                body: JSON.stringify(payload),
+                headers: {
+                    "Content-Type": "text/plain;charset=utf-8",
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                // If successful, remove it from the local storage
+                offlineRecords.shift(); 
+                localStorage.setItem("clinic_offline_records", JSON.stringify(offlineRecords));
+                
+                checkOfflineQueue();
+                
+                // If there are more records, keep syncing automatically
+                if (offlineRecords.length > 0) {
+                    syncOfflineRecords();
+                } else {
+                    syncBtn.disabled = false;
+                    alert("All offline records have been synced to Google Sheets!");
+                }
+            })
+            .catch(error => {
+                console.error("Still offline", error);
+                syncBtn.disabled = false;
+                checkOfflineQueue();
+                alert("You are still offline. Try syncing again later when your connection is stable.");
+            });
+        }
+
         function saveData() {
             const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwZDNH1atKxA7vBP6YZgdtycSkQ1Qu4qmWfwwn--4ATcWiCrVng54fqV9X5GtchTw93/exec"; 
             
@@ -418,6 +485,10 @@
             saveBtn.innerText = "Saving to Database...";
             saveBtn.disabled = true;
 
+            // --- CRITICAL CHANGE: Show receipt immediately, before trying the internet connection ---
+            generateReceipt(patientName, total, tendered, change, pfAmount, medCertAmount);
+
+            // Now attempt to send to Google Sheets
             fetch(SCRIPT_URL, {
                 method: "POST",
                 body: JSON.stringify(payload),
@@ -427,16 +498,22 @@
             })
             .then(response => response.json())
             .then(data => {
-                generateReceipt(patientName, total, tendered, change, pfAmount, medCertAmount);
-                
+                // Online success
                 saveBtn.innerText = "Save Record";
                 saveBtn.disabled = false;
             })
             .catch(error => {
-                console.error("Error!", error);
-                alert("Something went wrong while saving. Please check your connection.");
+                // Offline fallback
+                console.error("Offline Mode Triggered", error);
                 saveBtn.innerText = "Save Record";
                 saveBtn.disabled = false;
+                
+                // Save to local storage queue
+                saveToOfflineQueue(payload);
+                
+                // Optional: Change header inside the receipt to let the user know
+                document.querySelector('.receipt-header').innerText = "Saved Locally (Offline Mode)";
+                document.querySelector('.receipt-header').style.color = "#FF9800";
             });
         }
 
