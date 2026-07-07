@@ -32,7 +32,7 @@
         }
         .modal-content {
             background-color: #fff;
-            margin: 10% auto; 
+            margin: 5% auto; /* Adjusted from 10% to 5% to give more top room */
             padding: 20px;
             border-radius: 8px;
             width: 90%;
@@ -44,6 +44,13 @@
         .receipt-divider { border-top: 1px dashed #ccc; margin: 10px 0; }
         .receipt-bold { font-weight: bold; }
         .receipt-subtext { font-size: 0.85em; color: #555; }
+        
+        /* THIS MAKES THE RECEIPT SCROLLABLE */
+        #receipt_body {
+            max-height: 50vh; /* Limits the list height to 50% of the screen */
+            overflow-y: auto; /* Adds a vertical scrollbar when needed */
+            padding-right: 5px; /* Keeps text from touching the scrollbar */
+        }
         
         .button-group {
             display: flex; gap: 10px; margin-top: 20px;
@@ -58,18 +65,16 @@
         /* PRINT SETTINGS */
         @media print {
             @page {
-                margin: 10mm; /* Clean margins */
+                margin: 10mm; 
             }
             body {
                 background: white;
                 margin: 0;
                 padding: 0;
             }
-            /* Completely collapse the main interface */
             .main-app-container {
                 display: none !important;
             }
-            /* Reformat the modal to act as a printed page */
             .modal {
                 position: static !important;
                 background: none !important;
@@ -78,7 +83,6 @@
                 align-items: flex-start !important;
                 padding-top: 0 !important;
             }
-            /* Add border, center it, and prevent page splits */
             .modal-content {
                 width: 100% !important;
                 max-width: 350px !important;
@@ -87,7 +91,11 @@
                 box-shadow: none !important;
                 page-break-inside: avoid !important;
             }
-            /* Hide the buttons from the actual printed paper */
+            /* Removes the scrollbar limits during printing so the whole list prints */
+            #receipt_body {
+                max-height: none !important;
+                overflow: visible !important;
+            }
             .no-print {
                 display: none !important;
             }
@@ -392,7 +400,6 @@
                 return;
             }
 
-            // --- THIS IS THE UPDATED LINE ---
             let medsListString = cart.length > 0 
                 ? cart.map(item => `${item.name} (₱${item.price.toFixed(2)} x ${item.quantity})`).join(", ") 
                 : "None";
