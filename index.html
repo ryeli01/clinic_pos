@@ -1,14 +1,3 @@
-Yes, that is completely possible and a very standard feature for POS systems. We can use a built-in browser command to trigger the print dialog (which works on both computers and mobile phones).
-
-The trick is making sure it *only* prints the receipt and not the background screen with all your medicine buttons and cart inputs. To do this, I have added a special block of CSS code called `@media print`. This tells the browser, "When printing, hide everything on the screen except the pop-up box, and also hide the buttons inside the pop-up so they don't show up on the paper."
-
-Here is the updated code. I replaced your single "Close & Reset" button with two side-by-side buttons: **Print** and **Close & Reset Form**.
-
-### The Updated Code
-
-Replace your entire HTML file with this code:
-
-```html
 <!DOCTYPE html>
 <html>
 <head>
@@ -433,5 +422,3 @@ Replace your entire HTML file with this code:
     </script>
 </body>
 </html>
-
-```
