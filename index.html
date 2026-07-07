@@ -242,8 +242,7 @@
                 return; // User clicked cancel
             }
             
-            // We use btoa() to encode their guess and compare it to the encoded password
-            // 'bjFtYlVz' is the secret encoded version of 'n1mbUs'
+           
             if (btoa(password) !== "bjFtYlVz") {
                 alert("Incorrect password. Price edit denied.");
                 return;
