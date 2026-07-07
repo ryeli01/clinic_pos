@@ -392,8 +392,9 @@
                 return;
             }
 
+            // --- THIS IS THE UPDATED LINE ---
             let medsListString = cart.length > 0 
-                ? cart.map(item => `${item.name} (x${item.quantity})`).join(", ") 
+                ? cart.map(item => `${item.name} (₱${item.price.toFixed(2)} x ${item.quantity})`).join(", ") 
                 : "None";
 
             const payload = {
