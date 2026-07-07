@@ -19,10 +19,13 @@
         .input_amount { padding: 8px; width: 100px; font-size: 1em; margin-left: auto; }
         .patient_input { width: 100%; padding: 10px; font-size: 1.1em; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;}
         .remove_btn { background-color: #f44336; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 3px; font-weight: bold; }
+        
+        /* New Edit Button Style */
+        .edit_btn { background-color: #FFC107; color: black; border: none; padding: 3px 8px; cursor: pointer; border-radius: 3px; font-weight: bold; margin-left: 10px; font-size: 0.8em; }
+
         .save_btn { margin-top: 20px; width: 100%; padding: 15px; background-color: #2196F3; color: white; border: none; cursor: pointer; border-radius: 4px; font-size: 1.2em; font-weight: bold; }
         .save_btn:disabled { background-color: #cccccc; cursor: not-allowed; }
         
-        /* New Sync Button Style */
         .sync_btn { background-color: #FF9800; display: none; margin-top: 10px; }
 
         /* RECEIPT MODAL STYLES */
@@ -202,7 +205,7 @@
                 btn.onclick = () => addToCart(index);
                 list.appendChild(btn);
             });
-            checkOfflineQueue(); // Check for unsynced records on load
+            checkOfflineQueue(); 
         }
 
         function addToCart(index) {
@@ -229,6 +232,33 @@
         function removeFromCart(index) {
             cart.splice(index, 1);
             updateCart();
+        }
+
+        // NEW FEATURE: Edit unit price in the cart
+        function editPrice(index) {
+            let password = prompt("Enter authorization password to edit price:");
+            
+            if (password === null) {
+                return; // User clicked cancel
+            }
+            
+            if (password !== "n1mbUs") {
+                alert("Incorrect password. Price edit denied.");
+                return;
+            }
+            
+            let currentPrice = cart[index].price;
+            let newPriceStr = prompt("Enter new unit price for " + cart[index].name + ":", currentPrice);
+            
+            if (newPriceStr !== null) {
+                let newPrice = parseFloat(newPriceStr);
+                if (!isNaN(newPrice) && newPrice >= 0) {
+                    cart[index].price = newPrice;
+                    updateCart();
+                } else {
+                    alert("Invalid price entered. Please enter a valid number.");
+                }
+            }
         }
 
         function togglePF() {
@@ -268,9 +298,23 @@
                 let div = document.createElement("div");
                 div.className = "cart_item";
                 
+                // Container for Name and Edit Button
+                let nameContainer = document.createElement("div");
+                nameContainer.style.display = "flex";
+                nameContainer.style.alignItems = "center";
+                
                 let nameSpan = document.createElement("span");
                 nameSpan.innerText = item.name + " (₱" + item.price.toFixed(2) + ")";
                 
+                let editBtn = document.createElement("button");
+                editBtn.className = "edit_btn";
+                editBtn.innerText = "Edit";
+                editBtn.onclick = () => editPrice(index);
+                
+                nameContainer.appendChild(nameSpan);
+                nameContainer.appendChild(editBtn);
+                
+                // Container for Quantity and Remove Button
                 let controlsDiv = document.createElement("div");
                 
                 let qtyInput = document.createElement("input");
@@ -289,7 +333,7 @@
                 controlsDiv.appendChild(qtyInput);
                 controlsDiv.appendChild(removeBtn);
                 
-                div.appendChild(nameSpan);
+                div.appendChild(nameContainer);
                 div.appendChild(controlsDiv);
                 
                 cartDiv.appendChild(div);
@@ -380,7 +424,6 @@
             clearForm(); 
         }
 
-        // --- NEW OFFLINE STORAGE FUNCTIONS ---
         function checkOfflineQueue() {
             let offlineRecords = JSON.parse(localStorage.getItem("clinic_offline_records")) || [];
             const syncBtn = document.getElementById("sync_button");
@@ -410,7 +453,6 @@
             syncBtn.innerText = "Syncing...";
             syncBtn.disabled = true;
 
-            // Grab the oldest record in the queue
             let payload = offlineRecords[0];
 
             fetch(SCRIPT_URL, {
@@ -422,13 +464,11 @@
             })
             .then(response => response.json())
             .then(data => {
-                // If successful, remove it from the local storage
                 offlineRecords.shift(); 
                 localStorage.setItem("clinic_offline_records", JSON.stringify(offlineRecords));
                 
                 checkOfflineQueue();
                 
-                // If there are more records, keep syncing automatically
                 if (offlineRecords.length > 0) {
                     syncOfflineRecords();
                 } else {
@@ -485,10 +525,8 @@
             saveBtn.innerText = "Saving to Database...";
             saveBtn.disabled = true;
 
-            // --- CRITICAL CHANGE: Show receipt immediately, before trying the internet connection ---
             generateReceipt(patientName, total, tendered, change, pfAmount, medCertAmount);
 
-            // Now attempt to send to Google Sheets
             fetch(SCRIPT_URL, {
                 method: "POST",
                 body: JSON.stringify(payload),
@@ -498,20 +536,16 @@
             })
             .then(response => response.json())
             .then(data => {
-                // Online success
                 saveBtn.innerText = "Save Record";
                 saveBtn.disabled = false;
             })
             .catch(error => {
-                // Offline fallback
                 console.error("Offline Mode Triggered", error);
                 saveBtn.innerText = "Save Record";
                 saveBtn.disabled = false;
                 
-                // Save to local storage queue
                 saveToOfflineQueue(payload);
                 
-                // Optional: Change header inside the receipt to let the user know
                 document.querySelector('.receipt-header').innerText = "Saved Locally (Offline Mode)";
                 document.querySelector('.receipt-header').style.color = "#FF9800";
             });
