@@ -57,23 +57,35 @@
 
         /* PRINT SETTINGS */
         @media print {
-            /* Hide the entire background page */
-            body * {
-                visibility: hidden;
+            @page {
+                margin: 10mm; /* Clean margins */
             }
-            /* Show ONLY the modal content and its inner text */
-            #receiptModal .modal-content, #receiptModal .modal-content * {
-                visibility: visible;
-            }
-            /* Position the receipt at the top of the printed page */
-            #receiptModal .modal-content {
-                position: absolute;
-                left: 0;
-                top: 0;
+            body {
+                background: white;
                 margin: 0;
-                padding: 10px;
-                width: 100%;
-                box-shadow: none; /* remove shadow for printing */
+                padding: 0;
+            }
+            /* Completely collapse the main interface */
+            .main-app-container {
+                display: none !important;
+            }
+            /* Reformat the modal to act as a printed page */
+            .modal {
+                position: static !important;
+                background: none !important;
+                display: flex !important;
+                justify-content: center !important;
+                align-items: flex-start !important;
+                padding-top: 0 !important;
+            }
+            /* Add border, center it, and prevent page splits */
+            .modal-content {
+                width: 100% !important;
+                max-width: 350px !important;
+                margin: 0 auto !important;
+                border: 2px solid #000 !important;
+                box-shadow: none !important;
+                page-break-inside: avoid !important;
             }
             /* Hide the buttons from the actual printed paper */
             .no-print {
@@ -84,38 +96,40 @@
 </head>
 <body>
 
-    <h2>Clinic Cashier</h2>
-    
-    <input type="text" id="patient_name" class="patient_input" placeholder="Enter Patient Full Name">
-    
-    <div id="medicine_list">
-    </div>
-
-    <h3>Cart</h3>
-    <div id="cart"></div>
-
-    <div class="fee_section">
-        <div class="fee_row">
-            <input type="checkbox" id="has_pf" onchange="togglePF()">
-            <label for="has_pf">Professional Fee</label>
-            <input type="number" id="pf_amount" class="input_amount hidden" min="0" step="0.01" placeholder="₱ Amount" oninput="updateCart()">
-        </div>
-        <div class="fee_row">
-            <input type="checkbox" id="has_medcert" onchange="toggleMedCert()">
-            <label for="has_medcert">Medical Certificate</label>
-            <input type="number" id="medcert_amount" class="input_amount hidden" min="0" step="0.01" placeholder="₱ Amount" oninput="updateCart()">
-        </div>
-    </div>
-
-    <div class="total" id="total_display">Total: ₱0.00</div>
-    
-    <div class="checkout_section">
-        <label for="amount_tendered"><strong>Amount Tendered (₱): </strong></label>
-        <input type="number" id="amount_tendered" class="input_amount" min="0" step="0.01" placeholder="Enter amount" oninput="calculateChange()">
+    <div class="main-app-container">
+        <h2>Clinic Cashier</h2>
         
-        <div class="change" id="change_display">Change: ₱0.00</div>
+        <input type="text" id="patient_name" class="patient_input" placeholder="Enter Patient Full Name">
         
-        <button id="save_button" class="save_btn" onclick="saveData()">Save Record</button>
+        <div id="medicine_list">
+        </div>
+
+        <h3>Cart</h3>
+        <div id="cart"></div>
+
+        <div class="fee_section">
+            <div class="fee_row">
+                <input type="checkbox" id="has_pf" onchange="togglePF()">
+                <label for="has_pf">Professional Fee</label>
+                <input type="number" id="pf_amount" class="input_amount hidden" min="0" step="0.01" placeholder="₱ Amount" oninput="updateCart()">
+            </div>
+            <div class="fee_row">
+                <input type="checkbox" id="has_medcert" onchange="toggleMedCert()">
+                <label for="has_medcert">Medical Certificate</label>
+                <input type="number" id="medcert_amount" class="input_amount hidden" min="0" step="0.01" placeholder="₱ Amount" oninput="updateCart()">
+            </div>
+        </div>
+
+        <div class="total" id="total_display">Total: ₱0.00</div>
+        
+        <div class="checkout_section">
+            <label for="amount_tendered"><strong>Amount Tendered (₱): </strong></label>
+            <input type="number" id="amount_tendered" class="input_amount" min="0" step="0.01" placeholder="Enter amount" oninput="calculateChange()">
+            
+            <div class="change" id="change_display">Change: ₱0.00</div>
+            
+            <button id="save_button" class="save_btn" onclick="saveData()">Save Record</button>
+        </div>
     </div>
 
     <div id="receiptModal" class="modal">
