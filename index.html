@@ -205,14 +205,6 @@
         }
 
         function editPrice(index) {
-            let password = prompt("Enter authorization password to edit price:");
-            if (password === null) return; 
-            
-            if (btoa(password) !== "bjFtYlVz") {
-                alert("Incorrect password. Price edit denied.");
-                return;
-            }
-            
             let currentPrice = cart[index].price;
             let newPriceStr = prompt("Enter new unit price for " + cart[index].name + ":", currentPrice);
             
@@ -401,8 +393,6 @@
             });
         }
 
-        // --- NEW REVIEW & CHECKOUT LOGIC ---
-
         function reviewOrder() {
             const patientName = document.getElementById("patient_name").value.trim();
             const total = getGrandTotal();
@@ -424,7 +414,6 @@
                 return;
             }
 
-            // Generate HTML for receipt
             const receiptBody = document.getElementById("receipt_body");
             let html = `<div class="receipt-line receipt-bold"><span>Patient:</span> <span>${patientName}</span></div>`;
             html += `<div class="receipt-divider"></div>`;
@@ -459,13 +448,11 @@
 
             receiptBody.innerHTML = html;
             
-            // Set Modal State to Review
             document.getElementById("modal_header_text").innerText = "Order Overview";
             document.getElementById("modal_header_text").style.color = "#FF9800";
             document.getElementById("review_buttons").style.display = "flex";
             document.getElementById("saved_buttons").style.display = "none";
             
-            // Open Modal
             document.getElementById("receiptModal").style.display = "block";
         }
 
