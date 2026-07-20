@@ -56,7 +56,8 @@
         .receipt-subtext { font-size: 0.85em; color: #555; }
         
         /* Modal Edit Controls */
-        .modal-qty-input { width: 40px; padding: 4px; text-align: center; border: 1px solid #ccc; border-radius: 3px; margin: 0 5px; font-size: 1em; }
+        .modal-qty-input { width: 50px; padding: 4px; text-align: center; border: 1px solid #ccc; border-radius: 3px; margin: 0 5px; font-size: 1em; }
+        .modal-price-input { width: 70px; padding: 4px; text-align: center; border: 1px solid #ccc; border-radius: 3px; margin: 0 5px; font-size: 1em; }
         .modal-remove-btn { background-color: #f44336; color: white; border: none; padding: 4px 8px; cursor: pointer; border-radius: 3px; font-weight: bold; font-size: 0.8em; }
         .flex-center { display: flex; align-items: center; }
         
@@ -119,11 +120,6 @@
         <div class="total" id="total_display">Total: ₱0.00</div>
         
         <div class="checkout_section">
-            <label for="amount_tendered"><strong>Amount Tendered (₱): </strong></label>
-            <input type="number" id="amount_tendered" class="input_amount" min="0" step="0.01" placeholder="Enter amount" oninput="calculateChange()">
-            
-            <div class="change" id="change_display">Change: ₱0.00</div>
-            
             <button id="checkout_button" class="save_btn" onclick="reviewOrder()">Review & Checkout</button>
             <button id="sync_button" class="save_btn sync_btn" onclick="syncOfflineRecords()">Sync Offline Records</button>
         </div>
@@ -138,7 +134,7 @@
             
             <div class="button-group no-print" id="review_buttons">
                 <button class="modal-btn edit-cart-btn" onclick="closeModal()">Back</button>
-                <button class="modal-btn confirm-btn" id="confirm_save_btn" onclick="confirmAndSave()">Confirm & Save</button>
+                <button class="modal-btn confirm-btn" id="confirm_save_btn" onclick="confirmAndSave()" disabled>Confirm & Save</button>
             </div>
 
             <div class="button-group no-print" id="saved_buttons" style="display:none;">
@@ -303,37 +299,11 @@
 
             let finalTotal = getGrandTotal();
             document.getElementById("total_display").innerText = "Total: ₱" + finalTotal.toFixed(2);
-            calculateChange(); 
-        }
-
-        function calculateChange() {
-            let finalTotal = getGrandTotal();
-            let tenderedStr = document.getElementById("amount_tendered").value;
-            let tendered = parseFloat(tenderedStr);
-            let changeDisplay = document.getElementById("change_display");
-            
-            if (isNaN(tendered) || tenderedStr.trim() === "") {
-                changeDisplay.innerText = "Change: ₱0.00";
-                changeDisplay.style.color = "black";
-                return 0;
-            }
-            
-            let change = tendered - finalTotal;
-            
-            if (change < 0) {
-                changeDisplay.innerText = "Change: Insufficient Amount";
-                changeDisplay.style.color = "red";
-            } else {
-                changeDisplay.innerText = "Change: ₱" + change.toFixed(2);
-                changeDisplay.style.color = "green";
-            }
-            return change;
         }
 
         function clearForm() {
             cart = [];
             document.getElementById("patient_name").value = "";
-            document.getElementById("amount_tendered").value = "";
             document.getElementById("has_pf").checked = false;
             document.getElementById("has_medcert").checked = false;
             
@@ -341,7 +311,6 @@
             toggleMedCert();
             updateCart();
             
-            // Reset image capture area if closed and reopened
             const captureArea = document.getElementById("receipt_capture_area");
             captureArea.innerHTML = `
                 <div class="receipt-header" id="modal_header_text">Order Overview</div>
@@ -349,9 +318,11 @@
             `;
             
             const imgBtn = document.querySelector(".image-btn");
-            imgBtn.style.display = "block";
-            imgBtn.innerText = "Save Image";
-            imgBtn.disabled = false;
+            if(imgBtn) {
+                imgBtn.style.display = "block";
+                imgBtn.innerText = "Save Image";
+                imgBtn.disabled = false;
+            }
         }
 
         function checkOfflineQueue() {
@@ -415,7 +386,6 @@
 
         function reviewOrder() {
             const patientName = document.getElementById("patient_name").value.trim();
-            const tendered = parseFloat(document.getElementById("amount_tendered").value);
             const pfAmount = parseFloat(document.getElementById("pf_amount").value) || 0;
             const medCertAmount = parseFloat(document.getElementById("medcert_amount").value) || 0;
 
@@ -425,10 +395,6 @@
             }
             if (cart.length === 0 && pfAmount === 0 && medCertAmount === 0) {
                 alert("Cart is empty and no fees are added.");
-                return;
-            }
-            if (isNaN(tendered)) {
-                alert("Please enter a valid amount tendered.");
                 return;
             }
 
@@ -444,10 +410,12 @@
         function renderEditableReceipt() {
             const patientName = document.getElementById("patient_name").value.trim();
             const total = getGrandTotal();
-            const tendered = parseFloat(document.getElementById("amount_tendered").value) || 0;
-            const change = calculateChange();
             const pfAmount = parseFloat(document.getElementById("pf_amount").value) || 0;
             const medCertAmount = parseFloat(document.getElementById("medcert_amount").value) || 0;
+            
+            // Preserve entered amount if user edits quantities while modal is open
+            const existingTenderedInput = document.getElementById("modal_amount_tendered");
+            let currentTenderedStr = existingTenderedInput ? existingTenderedInput.value : "";
 
             const receiptBody = document.getElementById("receipt_body");
             let html = `<div class="receipt-line receipt-bold"><span>Patient:</span> <span>${patientName}</span></div>`;
@@ -458,19 +426,21 @@
                 cart.forEach((item, index) => {
                     let subtotal = item.price * item.quantity;
                     html += `
-                    <div class="receipt-line" style="align-items: center;">
-                        <div style="flex: 1;">
-                            <div class="receipt-subtext" style="font-weight:bold; color: #333;">${item.name}</div>
-                            <div class="flex-center receipt-subtext">
-                                ₱${item.price.toFixed(2)} x 
-                                <input type="number" class="modal-qty-input" value="${item.quantity}" min="1" onchange="updateModalQty(${index}, this.value)">
-                                <button class="modal-remove-btn" onclick="removeModalItem(${index})">X</button>
-                            </div>
+                    <div class="receipt-line" style="flex-direction: column; align-items: stretch;">
+                        <div style="display: flex; justify-content: space-between;">
+                            <span class="receipt-subtext" style="font-weight:bold; color: #333;">${item.name}</span>
+                            <span style="font-weight:bold;">₱${subtotal.toFixed(2)}</span>
                         </div>
-                        <span style="font-weight:bold;">₱${subtotal.toFixed(2)}</span>
+                        <div class="flex-center receipt-subtext" style="justify-content: space-between; margin-top: 6px;">
+                            <div>
+                                ₱<input type="number" class="modal-price-input" value="${item.price.toFixed(2)}" step="0.01" min="0" onchange="updateModalPrice(${index}, this.value)"> x 
+                                <input type="number" class="modal-qty-input" value="${item.quantity}" min="1" onchange="updateModalQty(${index}, this.value)">
+                            </div>
+                            <button class="modal-remove-btn" onclick="removeModalItem(${index})">X</button>
+                        </div>
                     </div>`;
+                    html += `<div class="receipt-divider" style="margin: 6px 0;"></div>`;
                 });
-                html += `<div class="receipt-divider"></div>`;
             }
 
             if (pfAmount > 0 || medCertAmount > 0) {
@@ -485,18 +455,62 @@
             }
 
             html += `<div class="receipt-line receipt-bold"><span>Total Payable:</span> <span>₱${total.toFixed(2)}</span></div>`;
-            html += `<div class="receipt-line"><span>Amount Tendered:</span> <span>₱${tendered.toFixed(2)}</span></div>`;
             
-            const confirmBtn = document.getElementById("confirm_save_btn");
-            if (change < 0) {
-                html += `<div class="receipt-line receipt-bold" style="color: red;"><span>Change:</span> <span>Insufficient Amount</span></div>`;
-                confirmBtn.disabled = true;
-            } else {
-                html += `<div class="receipt-line receipt-bold" style="color: green;"><span>Change:</span> <span>₱${change.toFixed(2)}</span></div>`;
-                confirmBtn.disabled = false;
-            }
+            // Amount Tendered Input inside Modal
+            html += `
+                <div class="receipt-line" style="align-items: center; margin-top: 10px;">
+                    <span class="receipt-bold">Amount Tendered:</span> 
+                    <div style="display:flex; align-items:center;">
+                        <span style="font-weight:bold; margin-right:4px;">₱</span>
+                        <input type="number" id="modal_amount_tendered" class="modal-price-input" style="width: 80px; font-weight:bold;" placeholder="0.00" value="${currentTenderedStr}" oninput="calculateModalChange()">
+                    </div>
+                </div>
+            `;
+            
+            // Container for Change
+            html += `<div id="modal_change_display" class="receipt-line receipt-bold" style="margin-top: 5px;"></div>`;
 
             receiptBody.innerHTML = html;
+            calculateModalChange(); 
+        }
+
+        function calculateModalChange() {
+            let total = getGrandTotal();
+            let tenderedStr = document.getElementById("modal_amount_tendered").value;
+            let tendered = parseFloat(tenderedStr);
+            let changeDisplay = document.getElementById("modal_change_display");
+            let confirmBtn = document.getElementById("confirm_save_btn");
+            
+            if (isNaN(tendered) || tenderedStr.trim() === "") {
+                changeDisplay.innerHTML = `<span>Change:</span> <span>₱0.00</span>`;
+                changeDisplay.style.color = "black";
+                confirmBtn.disabled = true;
+                return;
+            }
+            
+            let change = tendered - total;
+            
+            if (change < 0) {
+                changeDisplay.innerHTML = `<span>Change:</span> <span>Insufficient</span>`;
+                changeDisplay.style.color = "red";
+                confirmBtn.disabled = true;
+            } else {
+                changeDisplay.innerHTML = `<span>Change:</span> <span>₱${change.toFixed(2)}</span>`;
+                changeDisplay.style.color = "green";
+                confirmBtn.disabled = false;
+            }
+        }
+
+        function updateModalPrice(index, val) {
+            let newPrice = parseFloat(val);
+            if (!isNaN(newPrice) && newPrice >= 0) {
+                cart[index].price = newPrice;
+                updateCart(); 
+                renderEditableReceipt(); 
+            } else {
+                alert("Invalid price.");
+                renderEditableReceipt();
+            }
         }
 
         function updateModalQty(index, val) {
@@ -506,15 +520,17 @@
 
         function removeModalItem(index) {
             removeFromCart(index); 
-            renderEditableReceipt(); 
+            if (cart.length === 0) {
+                closeModal();
+            } else {
+                renderEditableReceipt(); 
+            }
         }
 
         // Render clean, non-editable text for the final static receipt graphic
-        function renderStaticReceipt() {
+        function renderStaticReceipt(tendered, change) {
             const patientName = document.getElementById("patient_name").value.trim();
             const total = getGrandTotal();
-            const tendered = parseFloat(document.getElementById("amount_tendered").value) || 0;
-            const change = calculateChange();
             const pfAmount = parseFloat(document.getElementById("pf_amount").value) || 0;
             const medCertAmount = parseFloat(document.getElementById("medcert_amount").value) || 0;
 
@@ -562,10 +578,18 @@
             
             const patientName = document.getElementById("patient_name").value.trim();
             const total = getGrandTotal();
-            const tendered = parseFloat(document.getElementById("amount_tendered").value);
-            const change = calculateChange();
+            
+            const tenderedInput = document.getElementById("modal_amount_tendered");
+            const tendered = parseFloat(tenderedInput.value);
+            const change = tendered - total;
+            
             const pfAmount = parseFloat(document.getElementById("pf_amount").value) || 0;
             const medCertAmount = parseFloat(document.getElementById("medcert_amount").value) || 0;
+
+            if (isNaN(tendered) || change < 0) {
+                alert("Please enter a valid and sufficient amount tendered before saving.");
+                return;
+            }
 
             let medsListString = cart.length > 0 
                 ? cart.map(item => `${item.name} (₱${item.price.toFixed(2)} x ${item.quantity})`).join(", ") 
@@ -592,12 +616,12 @@
             })
             .then(response => response.json())
             .then(data => {
-                transitionToSavedState("Record Saved!", "#4CAF50");
+                transitionToSavedState("Record Saved!", "#4CAF50", tendered, change);
             })
             .catch(error => {
                 console.error("Offline Mode Triggered", error);
                 saveToOfflineQueue(payload);
-                transitionToSavedState("Saved Locally (Offline)", "#FF9800");
+                transitionToSavedState("Saved Locally (Offline)", "#FF9800", tendered, change);
             })
             .finally(() => {
                 confirmBtn.innerText = "Confirm & Save";
@@ -605,17 +629,15 @@
             });
         }
 
-        function transitionToSavedState(headerText, headerColor) {
+        function transitionToSavedState(headerText, headerColor, tendered, change) {
             document.getElementById("modal_header_text").innerText = headerText;
             document.getElementById("modal_header_text").style.color = headerColor;
             document.getElementById("review_buttons").style.display = "none";
             document.getElementById("saved_buttons").style.display = "flex";
             
-            // Remove the edit inputs so the final saved receipt looks clean
-            renderStaticReceipt();
+            // Lock in the final numbers so they appear cleanly on the saved image
+            renderStaticReceipt(tendered, change);
         }
-
-        // --- NEW MOBILE IMAGE SAVING LOGIC --- //
 
         function saveAsImage() {
             const captureArea = document.getElementById("receipt_capture_area");
@@ -627,7 +649,6 @@
             html2canvas(captureArea, { scale: 2 }).then(canvas => {
                 let imgData = canvas.toDataURL("image/png");
                 
-                // Replace the HTML text with the generated image and native save instructions
                 captureArea.innerHTML = `
                     <p style="text-align: center; font-weight: bold; color: #E91E63; margin-bottom: 10px; font-size: 0.9em;">
                         Tap and hold the image below to save to your Gallery
