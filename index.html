@@ -3,6 +3,7 @@
 <head>
     <title>Clinic POS</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         body { font-family: Arial, Helvetica; padding: 20px; max-width: 600px; margin: auto; }
         .med_btn { padding: 10px; margin: 5px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 4px; }
@@ -20,7 +21,6 @@
         .patient_input { width: 100%; padding: 10px; font-size: 1.1em; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;}
         .remove_btn { background-color: #f44336; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 3px; font-weight: bold; }
         
-        /* Edit Button Style */
         .edit_btn { background-color: #FFC107; color: black; border: none; padding: 3px 8px; cursor: pointer; border-radius: 3px; font-weight: bold; margin-left: 10px; font-size: 0.8em; }
 
         .save_btn { margin-top: 20px; width: 100%; padding: 15px; background-color: #2196F3; color: white; border: none; cursor: pointer; border-radius: 4px; font-size: 1.2em; font-weight: bold; }
@@ -45,6 +45,10 @@
             max-width: 400px;
             box-shadow: 0 4px 8px rgba(0,0,0,0.2);
         }
+        #receipt_capture_area {
+            background-color: #fff;
+            padding: 10px;
+        }
         .receipt-header { text-align: center; font-size: 1.3em; font-weight: bold; margin-bottom: 15px; color: #4CAF50; }
         .receipt-line { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.95em; }
         .receipt-divider { border-top: 1px dashed #ccc; margin: 10px 0; }
@@ -60,49 +64,24 @@
         .button-group {
             display: flex; gap: 10px; margin-top: 20px;
         }
-        .print-btn, .reset-btn {
+        .modal-btn {
             flex: 1; padding: 12px; color: white; border: none;
-            border-radius: 4px; font-size: 1.1em; font-weight: bold; cursor: pointer;
+            border-radius: 4px; font-size: 1em; font-weight: bold; cursor: pointer; text-align: center;
         }
+        .confirm-btn { background-color: #4CAF50; }
+        .edit-cart-btn { background-color: #FF9800; }
         .print-btn { background-color: #607D8B; }
+        .image-btn { background-color: #9C27B0; }
         .reset-btn { background-color: #f44336; }
 
-        /* PRINT SETTINGS */
         @media print {
-            @page {
-                margin: 10mm; 
-            }
-            body {
-                background: white;
-                margin: 0;
-                padding: 0;
-            }
-            .main-app-container {
-                display: none !important;
-            }
-            .modal {
-                position: static !important;
-                background: none !important;
-                display: flex !important;
-                justify-content: center !important;
-                align-items: flex-start !important;
-                padding-top: 0 !important;
-            }
-            .modal-content {
-                width: 100% !important;
-                max-width: 350px !important;
-                margin: 0 auto !important;
-                border: 2px solid #000 !important;
-                box-shadow: none !important;
-                page-break-inside: avoid !important;
-            }
-            #receipt_body {
-                max-height: none !important;
-                overflow: visible !important;
-            }
-            .no-print {
-                display: none !important;
-            }
+            @page { margin: 10mm; }
+            body { background: white; margin: 0; padding: 0; }
+            .main-app-container { display: none !important; }
+            .modal { position: static !important; background: none !important; display: flex !important; justify-content: center !important; align-items: flex-start !important; padding-top: 0 !important; }
+            .modal-content { width: 100% !important; max-width: 350px !important; margin: 0 auto !important; border: 2px solid #000 !important; box-shadow: none !important; page-break-inside: avoid !important; }
+            #receipt_body { max-height: none !important; overflow: visible !important; }
+            .no-print { display: none !important; }
         }
     </style>
 </head>
@@ -113,8 +92,7 @@
         
         <input type="text" id="patient_name" class="patient_input" placeholder="Enter Patient Full Name">
         
-        <div id="medicine_list">
-        </div>
+        <div id="medicine_list"></div>
 
         <h3>Cart</h3>
         <div id="cart"></div>
@@ -140,79 +118,51 @@
             
             <div class="change" id="change_display">Change: ₱0.00</div>
             
-            <button id="save_button" class="save_btn" onclick="saveData()">Save Record</button>
+            <button id="checkout_button" class="save_btn" onclick="reviewOrder()">Review & Checkout</button>
             <button id="sync_button" class="save_btn sync_btn" onclick="syncOfflineRecords()">Sync Offline Records</button>
         </div>
     </div>
 
     <div id="receiptModal" class="modal">
         <div class="modal-content">
-            <div class="receipt-header">Record Saved!</div>
-            <div id="receipt_body">
-                </div>
+            <div id="receipt_capture_area">
+                <div class="receipt-header" id="modal_header_text">Order Overview</div>
+                <div id="receipt_body"></div>
+            </div>
             
-            <div class="button-group no-print">
-                <button class="print-btn" onclick="window.print()">Print Receipt</button>
-                <button class="reset-btn" onclick="closeReceiptAndReset()">Close & Reset</button>
+            <div class="button-group no-print" id="review_buttons">
+                <button class="modal-btn edit-cart-btn" onclick="closeModal()">Edit Cart</button>
+                <button class="modal-btn confirm-btn" id="confirm_save_btn" onclick="confirmAndSave()">Confirm & Save</button>
+            </div>
+
+            <div class="button-group no-print" id="saved_buttons" style="display:none;">
+                <button class="modal-btn print-btn" onclick="window.print()">Print</button>
+                <button class="modal-btn image-btn" onclick="saveAsImage()">Save Image</button>
+                <button class="modal-btn reset-btn" onclick="closeReceiptAndReset()">Close</button>
             </div>
         </div>
     </div>
 
     <script>
         const medicines = [
-            { name: "Abdin 10 mg", price: 80 },
-    { name: "Abdin 5 mg", price: 60 },
-    { name: "Abilify", price: 250 },
-    { name: "Akidin", price: 15 },
-    { name: "Apiden", price: 12 },
-    { name: "Arilan Aripiprazole 5 mg", price: 40 },
-    { name: "Arilan Aripiprazole 10 mg", price: 55 },
-    { name: "Asterol", price: 15 },
-    { name: "Brintellix 10 mg", price: 115 },
-    { name: "Brintellix 5 mg", price: 90 },
-    { name: "Clopixene (Clozapine)", price: 30 },
-    { name: "Concerta", price: 230 },
-    { name: "Conjupram (Escitalopram)", price: 17 },
-    { name: "Depamax 250 mg", price: 17 },
-    { name: "Depamax 500 mg", price: 22 },
-    { name: "Depamax Syrup", price: 275 },
-    { name: "Deperin (Zotral/ Sertraline)", price: 25 },
-    { name: "Diphenhydramine 25 mg", price: 5 },
-    { name: "Diphenhydramine 50 mg", price: 5 },
-    { name: "Drafzin", price: 21 },
-    { name: "Escinal", price: 15 },
-    { name: "Fluphenazine", price: 900 },
-    { name: "Folic", price: 5 },
-    { name: "Haloperidol", price: 25 },
-    { name: "Lamotrigine", price: 25 },
-    { name: "Lexapro", price: 100 },
-    { name: "Loxx 30 mg", price: 20 },
-    { name: "Loxx 60 mg", price: 30 },
-    { name: "Maintena", price: 10500 },
-    { name: "Mirazep/Menelat", price: 45 },
-    { name: "Morcet", price: 17 },
-    { name: "Motrigine", price: 30 },
-    { name: "Neurotain", price: 40 },
-    { name: "Olanzapine (Olanzin, Zenia)", price: 50 },
-    { name: "Q-win", price: 50 },
-    { name: "Quetadin", price: 40 },
-    { name: "Rexulti 1 mg", price: 160 },
-    { name: "Rexulti 2 mg", price: 200 },
-    { name: "Rexulti 4 mg", price: 200 },
-    { name: "Ricoverin", price: 20 },
-    { name: "Riscare", price: 50 },
-    { name: "Rispen / Reone", price: 15 },
-    { name: "Ritalin", price: 75 },
-    { name: "Rivotril", price: 50 },
-    { name: "Syclop /Ziproc (Clozapine)", price: 35 },
-    { name: "Telmisartan", price: 15 },
-    { name: "Valparin", price: 30 },
-    { name: "Valparin Syrup", price: 250 },
-    { name: "Vit B (Multivitamins)", price: 5 },
-    { name: "Vit C", price: 5 },
-    { name: "Voxamine", price: 55 },
-    { name: "Xanor", price: 50 },
-    { name: "Zuredel", price: 20 }
+            { name: "Abdin 10 mg", price: 80 }, { name: "Abdin 5 mg", price: 60 }, { name: "Abilify", price: 250 },
+            { name: "Akidin", price: 15 }, { name: "Apiden", price: 12 }, { name: "Arilan Aripiprazole 5 mg", price: 40 },
+            { name: "Arilan Aripiprazole 10 mg", price: 55 }, { name: "Asterol", price: 15 }, { name: "Brintellix 10 mg", price: 115 },
+            { name: "Brintellix 5 mg", price: 90 }, { name: "Clopixene (Clozapine)", price: 30 }, { name: "Concerta", price: 230 },
+            { name: "Conjupram (Escitalopram)", price: 17 }, { name: "Depamax 250 mg", price: 17 }, { name: "Depamax 500 mg", price: 22 },
+            { name: "Depamax Syrup", price: 275 }, { name: "Deperin (Zotral/ Sertraline)", price: 25 }, { name: "Diphenhydramine 25 mg", price: 5 },
+            { name: "Diphenhydramine 50 mg", price: 5 }, { name: "Drafzin", price: 21 }, { name: "Escinal", price: 15 },
+            { name: "Fluphenazine", price: 900 }, { name: "Folic", price: 5 }, { name: "Haloperidol", price: 25 },
+            { name: "Lamotrigine", price: 25 }, { name: "Lexapro", price: 100 }, { name: "Loxx 30 mg", price: 20 },
+            { name: "Loxx 60 mg", price: 30 }, { name: "Maintena", price: 10500 }, { name: "Mirazep/Menelat", price: 45 },
+            { name: "Morcet", price: 17 }, { name: "Motrigine", price: 30 }, { name: "Neurotain", price: 40 },
+            { name: "Olanzapine (Olanzin, Zenia)", price: 50 }, { name: "Q-win", price: 50 }, { name: "Quetadin", price: 40 },
+            { name: "Rexulti 1 mg", price: 160 }, { name: "Rexulti 2 mg", price: 200 }, { name: "Rexulti 4 mg", price: 200 },
+            { name: "Ricoverin", price: 20 }, { name: "Riscare", price: 50 }, { name: "Rispen / Reone", price: 15 },
+            { name: "Ritalin", price: 75 }, { name: "Rivotril", price: 50 }, { name: "Syclop /Ziproc (Clozapine)", price: 35 },
+            { name: "Telmisartan", price: 15 }, { name: "Valparin", price: 30 }, { name: "Valparin Syrup", price: 250 },
+            { name: "Vit B (Multivitamins)", price: 5 }, { name: "Vit C", price: 5 }, { name: "Voxamine", price: 55 },
+            { name: "Xanor", price: 50 }, { name: "Zuredel", price: 20 }
         ];
 
         let cart = [];
@@ -232,7 +182,6 @@
         function addToCart(index) {
             const med = medicines[index];
             const existingItem = cart.find(item => item.name === med.name);
-            
             if (existingItem) {
                 existingItem.quantity += 1;
             } else {
@@ -255,15 +204,10 @@
             updateCart();
         }
 
-        // Edit unit price in the cart using base64 obscured password
         function editPrice(index) {
             let password = prompt("Enter authorization password to edit price:");
+            if (password === null) return; 
             
-            if (password === null) {
-                return; // User clicked cancel
-            }
-            
-           
             if (btoa(password) !== "bjFtYlVz") {
                 alert("Incorrect password. Price edit denied.");
                 return;
@@ -320,7 +264,6 @@
                 let div = document.createElement("div");
                 div.className = "cart_item";
                 
-                // Container for Name and Edit Button
                 let nameContainer = document.createElement("div");
                 nameContainer.style.display = "flex";
                 nameContainer.style.alignItems = "center";
@@ -336,7 +279,6 @@
                 nameContainer.appendChild(nameSpan);
                 nameContainer.appendChild(editBtn);
                 
-                // Container for Quantity and Remove Button
                 let controlsDiv = document.createElement("div");
                 
                 let qtyInput = document.createElement("input");
@@ -363,7 +305,6 @@
 
             let finalTotal = getGrandTotal();
             document.getElementById("total_display").innerText = "Total: ₱" + finalTotal.toFixed(2);
-            
             calculateChange(); 
         }
 
@@ -403,49 +344,6 @@
             updateCart();
         }
 
-        function generateReceipt(patientName, total, tendered, change, pfAmount, medCertAmount) {
-            const receiptBody = document.getElementById("receipt_body");
-            let html = `<div class="receipt-line receipt-bold"><span>Patient:</span> <span>${patientName}</span></div>`;
-            html += `<div class="receipt-divider"></div>`;
-            
-            if (cart.length > 0) {
-                html += `<div class="receipt-bold" style="margin-bottom: 5px;">Medicines:</div>`;
-                cart.forEach(item => {
-                    let subtotal = item.price * item.quantity;
-                    html += `
-                    <div class="receipt-line">
-                        <span class="receipt-subtext">${item.name} <br>(₱${item.price.toFixed(2)} x ${item.quantity})</span>
-                        <span>₱${subtotal.toFixed(2)}</span>
-                    </div>`;
-                });
-                html += `<div class="receipt-divider"></div>`;
-            }
-
-            if (pfAmount > 0 || medCertAmount > 0) {
-                html += `<div class="receipt-bold" style="margin-bottom: 5px;">Fees:</div>`;
-                if (pfAmount > 0) {
-                    html += `<div class="receipt-line"><span>Professional Fee</span> <span>₱${pfAmount.toFixed(2)}</span></div>`;
-                }
-                if (medCertAmount > 0) {
-                    html += `<div class="receipt-line"><span>Medical Certificate</span> <span>₱${medCertAmount.toFixed(2)}</span></div>`;
-                }
-                html += `<div class="receipt-divider"></div>`;
-            }
-
-            html += `<div class="receipt-line receipt-bold"><span>Total Payable:</span> <span>₱${total.toFixed(2)}</span></div>`;
-            html += `<div class="receipt-line"><span>Amount Tendered:</span> <span>₱${tendered.toFixed(2)}</span></div>`;
-            html += `<div class="receipt-line receipt-bold" style="color: green;"><span>Change:</span> <span>₱${change.toFixed(2)}</span></div>`;
-
-            receiptBody.innerHTML = html;
-            
-            document.getElementById("receiptModal").style.display = "block";
-        }
-
-        function closeReceiptAndReset() {
-            document.getElementById("receiptModal").style.display = "none";
-            clearForm(); 
-        }
-
         function checkOfflineQueue() {
             let offlineRecords = JSON.parse(localStorage.getItem("clinic_offline_records")) || [];
             const syncBtn = document.getElementById("sync_button");
@@ -480,15 +378,12 @@
             fetch(SCRIPT_URL, {
                 method: "POST",
                 body: JSON.stringify(payload),
-                headers: {
-                    "Content-Type": "text/plain;charset=utf-8",
-                }
+                headers: { "Content-Type": "text/plain;charset=utf-8" }
             })
             .then(response => response.json())
             .then(data => {
                 offlineRecords.shift(); 
                 localStorage.setItem("clinic_offline_records", JSON.stringify(offlineRecords));
-                
                 checkOfflineQueue();
                 
                 if (offlineRecords.length > 0) {
@@ -506,9 +401,9 @@
             });
         }
 
-        function saveData() {
-            const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwZDNH1atKxA7vBP6YZgdtycSkQ1Qu4qmWfwwn--4ATcWiCrVng54fqV9X5GtchTw93/exec"; 
-            
+        // --- NEW REVIEW & CHECKOUT LOGIC ---
+
+        function reviewOrder() {
             const patientName = document.getElementById("patient_name").value.trim();
             const total = getGrandTotal();
             const tendered = parseFloat(document.getElementById("amount_tendered").value);
@@ -529,6 +424,65 @@
                 return;
             }
 
+            // Generate HTML for receipt
+            const receiptBody = document.getElementById("receipt_body");
+            let html = `<div class="receipt-line receipt-bold"><span>Patient:</span> <span>${patientName}</span></div>`;
+            html += `<div class="receipt-divider"></div>`;
+            
+            if (cart.length > 0) {
+                html += `<div class="receipt-bold" style="margin-bottom: 5px;">Medicines:</div>`;
+                cart.forEach(item => {
+                    let subtotal = item.price * item.quantity;
+                    html += `
+                    <div class="receipt-line">
+                        <span class="receipt-subtext">${item.name} <br>(₱${item.price.toFixed(2)} x ${item.quantity})</span>
+                        <span>₱${subtotal.toFixed(2)}</span>
+                    </div>`;
+                });
+                html += `<div class="receipt-divider"></div>`;
+            }
+
+            if (pfAmount > 0 || medCertAmount > 0) {
+                html += `<div class="receipt-bold" style="margin-bottom: 5px;">Fees:</div>`;
+                if (pfAmount > 0) {
+                    html += `<div class="receipt-line"><span>Professional Fee</span> <span>₱${pfAmount.toFixed(2)}</span></div>`;
+                }
+                if (medCertAmount > 0) {
+                    html += `<div class="receipt-line"><span>Medical Certificate</span> <span>₱${medCertAmount.toFixed(2)}</span></div>`;
+                }
+                html += `<div class="receipt-divider"></div>`;
+            }
+
+            html += `<div class="receipt-line receipt-bold"><span>Total Payable:</span> <span>₱${total.toFixed(2)}</span></div>`;
+            html += `<div class="receipt-line"><span>Amount Tendered:</span> <span>₱${tendered.toFixed(2)}</span></div>`;
+            html += `<div class="receipt-line receipt-bold" style="color: green;"><span>Change:</span> <span>₱${change.toFixed(2)}</span></div>`;
+
+            receiptBody.innerHTML = html;
+            
+            // Set Modal State to Review
+            document.getElementById("modal_header_text").innerText = "Order Overview";
+            document.getElementById("modal_header_text").style.color = "#FF9800";
+            document.getElementById("review_buttons").style.display = "flex";
+            document.getElementById("saved_buttons").style.display = "none";
+            
+            // Open Modal
+            document.getElementById("receiptModal").style.display = "block";
+        }
+
+        function closeModal() {
+            document.getElementById("receiptModal").style.display = "none";
+        }
+
+        function confirmAndSave() {
+            const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwZDNH1atKxA7vBP6YZgdtycSkQ1Qu4qmWfwwn--4ATcWiCrVng54fqV9X5GtchTw93/exec"; 
+            
+            const patientName = document.getElementById("patient_name").value.trim();
+            const total = getGrandTotal();
+            const tendered = parseFloat(document.getElementById("amount_tendered").value);
+            const change = calculateChange();
+            const pfAmount = parseFloat(document.getElementById("pf_amount").value) || 0;
+            const medCertAmount = parseFloat(document.getElementById("medcert_amount").value) || 0;
+
             let medsListString = cart.length > 0 
                 ? cart.map(item => `${item.name} (₱${item.price.toFixed(2)} x ${item.quantity})`).join(", ") 
                 : "None";
@@ -543,34 +497,54 @@
                 change: change
             };
 
-            const saveBtn = document.getElementById("save_button");
-            saveBtn.innerText = "Saving to Database...";
-            saveBtn.disabled = true;
-
-            generateReceipt(patientName, total, tendered, change, pfAmount, medCertAmount);
+            const confirmBtn = document.getElementById("confirm_save_btn");
+            confirmBtn.innerText = "Saving...";
+            confirmBtn.disabled = true;
 
             fetch(SCRIPT_URL, {
                 method: "POST",
                 body: JSON.stringify(payload),
-                headers: {
-                    "Content-Type": "text/plain;charset=utf-8",
-                }
+                headers: { "Content-Type": "text/plain;charset=utf-8" }
             })
             .then(response => response.json())
             .then(data => {
-                saveBtn.innerText = "Save Record";
-                saveBtn.disabled = false;
+                transitionToSavedState("Record Saved!", "#4CAF50");
             })
             .catch(error => {
                 console.error("Offline Mode Triggered", error);
-                saveBtn.innerText = "Save Record";
-                saveBtn.disabled = false;
-                
                 saveToOfflineQueue(payload);
-                
-                document.querySelector('.receipt-header').innerText = "Saved Locally (Offline Mode)";
-                document.querySelector('.receipt-header').style.color = "#FF9800";
+                transitionToSavedState("Saved Locally (Offline Mode)", "#FF9800");
+            })
+            .finally(() => {
+                confirmBtn.innerText = "Confirm & Save";
+                confirmBtn.disabled = false;
             });
+        }
+
+        function transitionToSavedState(headerText, headerColor) {
+            document.getElementById("modal_header_text").innerText = headerText;
+            document.getElementById("modal_header_text").style.color = headerColor;
+            document.getElementById("review_buttons").style.display = "none";
+            document.getElementById("saved_buttons").style.display = "flex";
+        }
+
+        function saveAsImage() {
+            const captureArea = document.getElementById("receipt_capture_area");
+            
+            html2canvas(captureArea, { scale: 2 }).then(canvas => {
+                let link = document.createElement("a");
+                link.download = `Receipt_${document.getElementById("patient_name").value.trim()}_${Date.now()}.png`;
+                link.href = canvas.toDataURL("image/png");
+                link.click();
+            }).catch(err => {
+                console.error("Error generating image: ", err);
+                alert("Failed to save image. Please try printing instead.");
+            });
+        }
+
+        function closeReceiptAndReset() {
+            document.getElementById("receiptModal").style.display = "none";
+            clearForm(); 
         }
 
         init();
