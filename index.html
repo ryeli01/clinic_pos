@@ -55,6 +55,11 @@
         .receipt-bold { font-weight: bold; }
         .receipt-subtext { font-size: 0.85em; color: #555; }
         
+        /* Modal Edit Controls */
+        .modal-qty-input { width: 40px; padding: 4px; text-align: center; border: 1px solid #ccc; border-radius: 3px; margin: 0 5px; font-size: 1em; }
+        .modal-remove-btn { background-color: #f44336; color: white; border: none; padding: 4px 8px; cursor: pointer; border-radius: 3px; font-weight: bold; font-size: 0.8em; }
+        .flex-center { display: flex; align-items: center; }
+        
         #receipt_body {
             max-height: 50vh; 
             overflow-y: auto; 
@@ -69,6 +74,7 @@
             border-radius: 4px; font-size: 1em; font-weight: bold; cursor: pointer; text-align: center;
         }
         .confirm-btn { background-color: #4CAF50; }
+        .confirm-btn:disabled { background-color: #cccccc; cursor: not-allowed; }
         .edit-cart-btn { background-color: #FF9800; }
         .print-btn { background-color: #607D8B; }
         .image-btn { background-color: #9C27B0; }
@@ -131,7 +137,7 @@
             </div>
             
             <div class="button-group no-print" id="review_buttons">
-                <button class="modal-btn edit-cart-btn" onclick="closeModal()">Edit Cart</button>
+                <button class="modal-btn edit-cart-btn" onclick="closeModal()">Back</button>
                 <button class="modal-btn confirm-btn" id="confirm_save_btn" onclick="confirmAndSave()">Confirm & Save</button>
             </div>
 
@@ -334,6 +340,18 @@
             togglePF();
             toggleMedCert();
             updateCart();
+            
+            // Reset image capture area if closed and reopened
+            const captureArea = document.getElementById("receipt_capture_area");
+            captureArea.innerHTML = `
+                <div class="receipt-header" id="modal_header_text">Order Overview</div>
+                <div id="receipt_body"></div>
+            `;
+            
+            const imgBtn = document.querySelector(".image-btn");
+            imgBtn.style.display = "block";
+            imgBtn.innerText = "Save Image";
+            imgBtn.disabled = false;
         }
 
         function checkOfflineQueue() {
@@ -393,11 +411,11 @@
             });
         }
 
+        // --- NEW MODAL EDITING LOGIC --- //
+
         function reviewOrder() {
             const patientName = document.getElementById("patient_name").value.trim();
-            const total = getGrandTotal();
             const tendered = parseFloat(document.getElementById("amount_tendered").value);
-            const change = calculateChange();
             const pfAmount = parseFloat(document.getElementById("pf_amount").value) || 0;
             const medCertAmount = parseFloat(document.getElementById("medcert_amount").value) || 0;
 
@@ -409,10 +427,96 @@
                 alert("Cart is empty and no fees are added.");
                 return;
             }
-            if (isNaN(tendered) || change < 0) {
-                alert("Please enter a valid and sufficient amount tendered.");
+            if (isNaN(tendered)) {
+                alert("Please enter a valid amount tendered.");
                 return;
             }
+
+            document.getElementById("modal_header_text").innerText = "Order Overview";
+            document.getElementById("modal_header_text").style.color = "#FF9800";
+            document.getElementById("review_buttons").style.display = "flex";
+            document.getElementById("saved_buttons").style.display = "none";
+            
+            renderEditableReceipt();
+            document.getElementById("receiptModal").style.display = "block";
+        }
+
+        function renderEditableReceipt() {
+            const patientName = document.getElementById("patient_name").value.trim();
+            const total = getGrandTotal();
+            const tendered = parseFloat(document.getElementById("amount_tendered").value) || 0;
+            const change = calculateChange();
+            const pfAmount = parseFloat(document.getElementById("pf_amount").value) || 0;
+            const medCertAmount = parseFloat(document.getElementById("medcert_amount").value) || 0;
+
+            const receiptBody = document.getElementById("receipt_body");
+            let html = `<div class="receipt-line receipt-bold"><span>Patient:</span> <span>${patientName}</span></div>`;
+            html += `<div class="receipt-divider"></div>`;
+            
+            if (cart.length > 0) {
+                html += `<div class="receipt-bold" style="margin-bottom: 5px;">Medicines:</div>`;
+                cart.forEach((item, index) => {
+                    let subtotal = item.price * item.quantity;
+                    html += `
+                    <div class="receipt-line" style="align-items: center;">
+                        <div style="flex: 1;">
+                            <div class="receipt-subtext" style="font-weight:bold; color: #333;">${item.name}</div>
+                            <div class="flex-center receipt-subtext">
+                                ₱${item.price.toFixed(2)} x 
+                                <input type="number" class="modal-qty-input" value="${item.quantity}" min="1" onchange="updateModalQty(${index}, this.value)">
+                                <button class="modal-remove-btn" onclick="removeModalItem(${index})">X</button>
+                            </div>
+                        </div>
+                        <span style="font-weight:bold;">₱${subtotal.toFixed(2)}</span>
+                    </div>`;
+                });
+                html += `<div class="receipt-divider"></div>`;
+            }
+
+            if (pfAmount > 0 || medCertAmount > 0) {
+                html += `<div class="receipt-bold" style="margin-bottom: 5px;">Fees:</div>`;
+                if (pfAmount > 0) {
+                    html += `<div class="receipt-line"><span>Professional Fee</span> <span>₱${pfAmount.toFixed(2)}</span></div>`;
+                }
+                if (medCertAmount > 0) {
+                    html += `<div class="receipt-line"><span>Medical Certificate</span> <span>₱${medCertAmount.toFixed(2)}</span></div>`;
+                }
+                html += `<div class="receipt-divider"></div>`;
+            }
+
+            html += `<div class="receipt-line receipt-bold"><span>Total Payable:</span> <span>₱${total.toFixed(2)}</span></div>`;
+            html += `<div class="receipt-line"><span>Amount Tendered:</span> <span>₱${tendered.toFixed(2)}</span></div>`;
+            
+            const confirmBtn = document.getElementById("confirm_save_btn");
+            if (change < 0) {
+                html += `<div class="receipt-line receipt-bold" style="color: red;"><span>Change:</span> <span>Insufficient Amount</span></div>`;
+                confirmBtn.disabled = true;
+            } else {
+                html += `<div class="receipt-line receipt-bold" style="color: green;"><span>Change:</span> <span>₱${change.toFixed(2)}</span></div>`;
+                confirmBtn.disabled = false;
+            }
+
+            receiptBody.innerHTML = html;
+        }
+
+        function updateModalQty(index, val) {
+            updateQuantity(index, val); 
+            renderEditableReceipt(); 
+        }
+
+        function removeModalItem(index) {
+            removeFromCart(index); 
+            renderEditableReceipt(); 
+        }
+
+        // Render clean, non-editable text for the final static receipt graphic
+        function renderStaticReceipt() {
+            const patientName = document.getElementById("patient_name").value.trim();
+            const total = getGrandTotal();
+            const tendered = parseFloat(document.getElementById("amount_tendered").value) || 0;
+            const change = calculateChange();
+            const pfAmount = parseFloat(document.getElementById("pf_amount").value) || 0;
+            const medCertAmount = parseFloat(document.getElementById("medcert_amount").value) || 0;
 
             const receiptBody = document.getElementById("receipt_body");
             let html = `<div class="receipt-line receipt-bold"><span>Patient:</span> <span>${patientName}</span></div>`;
@@ -447,13 +551,6 @@
             html += `<div class="receipt-line receipt-bold" style="color: green;"><span>Change:</span> <span>₱${change.toFixed(2)}</span></div>`;
 
             receiptBody.innerHTML = html;
-            
-            document.getElementById("modal_header_text").innerText = "Order Overview";
-            document.getElementById("modal_header_text").style.color = "#FF9800";
-            document.getElementById("review_buttons").style.display = "flex";
-            document.getElementById("saved_buttons").style.display = "none";
-            
-            document.getElementById("receiptModal").style.display = "block";
         }
 
         function closeModal() {
@@ -500,7 +597,7 @@
             .catch(error => {
                 console.error("Offline Mode Triggered", error);
                 saveToOfflineQueue(payload);
-                transitionToSavedState("Saved Locally (Offline Mode)", "#FF9800");
+                transitionToSavedState("Saved Locally (Offline)", "#FF9800");
             })
             .finally(() => {
                 confirmBtn.innerText = "Confirm & Save";
@@ -513,19 +610,38 @@
             document.getElementById("modal_header_text").style.color = headerColor;
             document.getElementById("review_buttons").style.display = "none";
             document.getElementById("saved_buttons").style.display = "flex";
+            
+            // Remove the edit inputs so the final saved receipt looks clean
+            renderStaticReceipt();
         }
+
+        // --- NEW MOBILE IMAGE SAVING LOGIC --- //
 
         function saveAsImage() {
             const captureArea = document.getElementById("receipt_capture_area");
+            const imgBtn = document.querySelector(".image-btn");
             
+            imgBtn.innerText = "Generating...";
+            imgBtn.disabled = true;
+
             html2canvas(captureArea, { scale: 2 }).then(canvas => {
-                let link = document.createElement("a");
-                link.download = `Receipt_${document.getElementById("patient_name").value.trim()}_${Date.now()}.png`;
-                link.href = canvas.toDataURL("image/png");
-                link.click();
+                let imgData = canvas.toDataURL("image/png");
+                
+                // Replace the HTML text with the generated image and native save instructions
+                captureArea.innerHTML = `
+                    <p style="text-align: center; font-weight: bold; color: #E91E63; margin-bottom: 10px; font-size: 0.9em;">
+                        Tap and hold the image below to save to your Gallery
+                    </p>
+                    <img src="${imgData}" style="width: 100%; border: 1px solid #ccc; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                `;
+                
+                imgBtn.style.display = "none";
+
             }).catch(err => {
                 console.error("Error generating image: ", err);
-                alert("Failed to save image. Please try printing instead.");
+                alert("Failed to generate image. Please try printing instead.");
+                imgBtn.innerText = "Save Image";
+                imgBtn.disabled = false;
             });
         }
 
