@@ -298,7 +298,13 @@
             });
 
             let finalTotal = getGrandTotal();
-            document.getElementById("total_display").innerText = "Total: ₱" + finalTotal.toFixed(2);
+            let uniqueMeds = cart.length;
+            
+            if (uniqueMeds > 0) {
+                document.getElementById("total_display").innerText = "Medicine Types: " + uniqueMeds + " | Total: ₱" + finalTotal.toFixed(2);
+            } else {
+                document.getElementById("total_display").innerText = "Total: ₱" + finalTotal.toFixed(2);
+            }
         }
 
         function clearForm() {
@@ -382,8 +388,6 @@
             });
         }
 
-        // --- NEW MODAL EDITING LOGIC --- //
-
         function reviewOrder() {
             const patientName = document.getElementById("patient_name").value.trim();
             const pfAmount = parseFloat(document.getElementById("pf_amount").value) || 0;
@@ -413,7 +417,6 @@
             const pfAmount = parseFloat(document.getElementById("pf_amount").value) || 0;
             const medCertAmount = parseFloat(document.getElementById("medcert_amount").value) || 0;
             
-            // Preserve entered amount if user edits quantities while modal is open
             const existingTenderedInput = document.getElementById("modal_amount_tendered");
             let currentTenderedStr = existingTenderedInput ? existingTenderedInput.value : "";
 
@@ -428,7 +431,7 @@
                     html += `
                     <div class="receipt-line" style="flex-direction: column; align-items: stretch;">
                         <div style="display: flex; justify-content: space-between;">
-                            <span class="receipt-subtext" style="font-weight:bold; color: #333;">${item.name}</span>
+                            <span class="receipt-subtext" style="font-weight:bold; color: #333;">${item.quantity}x ${item.name}</span>
                             <span style="font-weight:bold;">₱${subtotal.toFixed(2)}</span>
                         </div>
                         <div class="flex-center receipt-subtext" style="justify-content: space-between; margin-top: 6px;">
@@ -454,9 +457,13 @@
                 html += `<div class="receipt-divider"></div>`;
             }
 
+            let uniqueMeds = cart.length;
+            if (uniqueMeds > 0) {
+                html += `<div class="receipt-line receipt-bold"><span>Medicine Types:</span> <span>${uniqueMeds}</span></div>`;
+            }
+
             html += `<div class="receipt-line receipt-bold"><span>Total Payable:</span> <span>₱${total.toFixed(2)}</span></div>`;
             
-            // Amount Tendered Input inside Modal
             html += `
                 <div class="receipt-line" style="align-items: center; margin-top: 10px;">
                     <span class="receipt-bold">Amount Tendered:</span> 
@@ -467,7 +474,6 @@
                 </div>
             `;
             
-            // Container for Change
             html += `<div id="modal_change_display" class="receipt-line receipt-bold" style="margin-top: 5px;"></div>`;
 
             receiptBody.innerHTML = html;
@@ -527,7 +533,6 @@
             }
         }
 
-        // Render clean, non-editable text for the final static receipt graphic
         function renderStaticReceipt(tendered, change) {
             const patientName = document.getElementById("patient_name").value.trim();
             const total = getGrandTotal();
@@ -544,7 +549,7 @@
                     let subtotal = item.price * item.quantity;
                     html += `
                     <div class="receipt-line">
-                        <span class="receipt-subtext">${item.name} <br>(₱${item.price.toFixed(2)} x ${item.quantity})</span>
+                        <span class="receipt-subtext">${item.quantity}x ${item.name} <br>(₱${item.price.toFixed(2)} each)</span>
                         <span>₱${subtotal.toFixed(2)}</span>
                     </div>`;
                 });
@@ -560,6 +565,11 @@
                     html += `<div class="receipt-line"><span>Medical Certificate</span> <span>₱${medCertAmount.toFixed(2)}</span></div>`;
                 }
                 html += `<div class="receipt-divider"></div>`;
+            }
+
+            let uniqueMeds = cart.length;
+            if (uniqueMeds > 0) {
+                html += `<div class="receipt-line receipt-bold"><span>Medicine Types:</span> <span>${uniqueMeds}</span></div>`;
             }
 
             html += `<div class="receipt-line receipt-bold"><span>Total Payable:</span> <span>₱${total.toFixed(2)}</span></div>`;
@@ -592,11 +602,12 @@
             }
 
             let medsListString = cart.length > 0 
-                ? cart.map(item => `${item.name} (₱${item.price.toFixed(2)} x ${item.quantity})`).join(", ") 
+                ? cart.map(item => `${item.quantity}x ${item.name} (₱${item.price.toFixed(2)}/ea)`).join(", ") 
                 : "None";
 
             const payload = {
                 patientName: patientName,
+                medicineTypes: cart.length,
                 medicines: medsListString,
                 pf: pfAmount,
                 medCert: medCertAmount,
@@ -635,7 +646,6 @@
             document.getElementById("review_buttons").style.display = "none";
             document.getElementById("saved_buttons").style.display = "flex";
             
-            // Lock in the final numbers so they appear cleanly on the saved image
             renderStaticReceipt(tendered, change);
         }
 
