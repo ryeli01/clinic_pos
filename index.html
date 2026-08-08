@@ -298,10 +298,11 @@
             });
 
             let finalTotal = getGrandTotal();
+            let medTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
             let uniqueMeds = cart.length;
             
             if (uniqueMeds > 0) {
-                document.getElementById("total_display").innerText = "Medicine Types: " + uniqueMeds + " | Total: ₱" + finalTotal.toFixed(2);
+                document.getElementById("total_display").innerText = "Medicine Types: " + uniqueMeds + " | Meds Total: ₱" + medTotal.toFixed(2) + " | Grand Total: ₱" + finalTotal.toFixed(2);
             } else {
                 document.getElementById("total_display").innerText = "Total: ₱" + finalTotal.toFixed(2);
             }
@@ -426,8 +427,11 @@
             
             if (cart.length > 0) {
                 html += `<div class="receipt-bold" style="margin-bottom: 5px;">Medicines:</div>`;
+                let medTotal = 0;
+                
                 cart.forEach((item, index) => {
                     let subtotal = item.price * item.quantity;
+                    medTotal += subtotal;
                     html += `
                     <div class="receipt-line" style="flex-direction: column; align-items: stretch;">
                         <div style="display: flex; justify-content: space-between;">
@@ -444,6 +448,9 @@
                     </div>`;
                     html += `<div class="receipt-divider" style="margin: 6px 0;"></div>`;
                 });
+                
+                html += `<div class="receipt-line receipt-bold" style="color: #2196F3;"><span>Meds Subtotal:</span> <span>₱${medTotal.toFixed(2)}</span></div>`;
+                html += `<div class="receipt-divider"></div>`;
             }
 
             if (pfAmount > 0 || medCertAmount > 0) {
@@ -545,14 +552,20 @@
             
             if (cart.length > 0) {
                 html += `<div class="receipt-bold" style="margin-bottom: 5px;">Medicines:</div>`;
+                let medTotal = 0;
+                
                 cart.forEach(item => {
                     let subtotal = item.price * item.quantity;
+                    medTotal += subtotal;
                     html += `
                     <div class="receipt-line">
                         <span class="receipt-subtext">${item.quantity}x ${item.name} <br>(₱${item.price.toFixed(2)} each)</span>
                         <span>₱${subtotal.toFixed(2)}</span>
                     </div>`;
                 });
+                
+                html += `<div class="receipt-divider"></div>`;
+                html += `<div class="receipt-line receipt-bold" style="color: #2196F3;"><span>Meds Subtotal:</span> <span>₱${medTotal.toFixed(2)}</span></div>`;
                 html += `<div class="receipt-divider"></div>`;
             }
 
