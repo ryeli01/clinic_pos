@@ -18,7 +18,7 @@
         .total, .change { font-size: 1.2em; font-weight: bold; margin-top: 15px; }
         .checkout_section { margin-top: 20px; padding-top: 20px; border-top: 1px solid #ccc; }
         .input_amount { padding: 8px; width: 100px; font-size: 1em; margin-left: auto; }
-        .patient_input { width: 100%; padding: 10px; font-size: 1.1em; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;}
+        .patient_input, .search_input { width: 100%; padding: 10px; font-size: 1.1em; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;}
         .remove_btn { background-color: #f44336; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 3px; font-weight: bold; }
         
         .edit_btn { background-color: #FFC107; color: black; border: none; padding: 3px 8px; cursor: pointer; border-radius: 3px; font-weight: bold; margin-left: 10px; font-size: 0.8em; }
@@ -99,6 +99,9 @@
         
         <input type="text" id="patient_name" class="patient_input" placeholder="Enter Patient Full Name">
         
+        <!-- NEW SEARCH FIELD -->
+        <input type="text" id="search_medicine" class="search_input" placeholder="Search for medicine..." oninput="filterMedicines()">
+        
         <div id="medicine_list"></div>
 
         <h3>Cart</h3>
@@ -170,15 +173,32 @@
         let cart = [];
 
         function init() {
-            const list = document.getElementById("medicine_list");
-            medicines.forEach((med, index) => {
-                let btn = document.createElement("button");
-                btn.className = "med_btn";
-                btn.innerText = med.name + " (₱" + med.price.toFixed(2) + ")";
-                btn.onclick = () => addToCart(index);
-                list.appendChild(btn);
-            });
+            renderMedicines(""); // Render all medicines initially
             checkOfflineQueue(); 
+        }
+
+        // NEW: Function to render the filtered medicines
+        function renderMedicines(searchTerm) {
+            const list = document.getElementById("medicine_list");
+            list.innerHTML = ""; 
+
+            const lowerSearchTerm = searchTerm.toLowerCase();
+
+            medicines.forEach((med, index) => {
+                if (med.name.toLowerCase().includes(lowerSearchTerm)) {
+                    let btn = document.createElement("button");
+                    btn.className = "med_btn";
+                    btn.innerText = med.name + " (₱" + med.price.toFixed(2) + ")";
+                    btn.onclick = () => addToCart(index); // Index corresponds to original array
+                    list.appendChild(btn);
+                }
+            });
+        }
+
+        // NEW: Function triggered by typing in the search box
+        function filterMedicines() {
+            const searchTerm = document.getElementById("search_medicine").value;
+            renderMedicines(searchTerm);
         }
 
         function addToCart(index) {
@@ -311,9 +331,12 @@
         function clearForm() {
             cart = [];
             document.getElementById("patient_name").value = "";
+            document.getElementById("search_medicine").value = ""; // Clear search text
             document.getElementById("has_pf").checked = false;
             document.getElementById("has_medcert").checked = false;
             
+            renderMedicines(""); // Reset the medicine buttons to show all
+
             togglePF();
             toggleMedCert();
             updateCart();
